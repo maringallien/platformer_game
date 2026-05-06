@@ -1,6 +1,9 @@
-export const GAME_WIDTH = 800;
-export const GAME_HEIGHT = 600;
 export const GRAVITY_Y = 800;
+
+// Camera zoom multiplier in GameScene. Higher = more zoomed-in on the player.
+// Pixel-art sprites are small (sword_master frame is 90x37); zoom 3 keeps the
+// character readable across typical desktop window sizes.
+export const CAMERA_ZOOM = 2;
 
 export const PLAYER_WALK_SPEED = 120;
 export const PLAYER_RUN_SPEED = 200;

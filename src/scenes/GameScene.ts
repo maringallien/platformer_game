@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import {
+  CAMERA_ZOOM,
   CURRENT_LEVEL_IDENTIFIER,
   ENTITY_DEPTH,
   SCENE_KEYS,
@@ -84,6 +85,7 @@ export class GameScene extends Phaser.Scene {
     );
 
     this.cameras.main.setBounds(0, 0, level.pxWid, level.pxHei);
+    this.cameras.main.setZoom(CAMERA_ZOOM);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
   }
 
