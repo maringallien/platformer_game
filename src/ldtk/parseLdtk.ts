@@ -97,6 +97,13 @@ export interface RenderableEntityTile {
   py: number;
   pivotX: number;
   pivotY: number;
+  // Entity bounding box in px (LDtk's instance.width/height). Required for
+  // tileRenderMode=FitInside — the source tile is uniformly scaled into this
+  // box, then anchored at the pivot relative to the box (not relative to the
+  // tile's own size). Without this, decorations whose entity bounds differ
+  // from their source tile size render at the wrong scale and position.
+  entityW: number;
+  entityH: number;
 }
 
 export interface RenderableEntityLayer {
@@ -110,8 +117,14 @@ export interface RenderableEntityLayer {
 // so callers can render decorations using the same depth scheme as tile
 // layers — preserving the LDtk-authored stacking between tile layers and
 // entity-decoration layers.
+//
+// `skipIdentifiers` lets the caller suppress entities whose visual is owned
+// by gameplay code (e.g. Player spawns) — LDtk includes a __tile preview on
+// every entity def, so without this filter the live sprite would render
+// alongside a frozen decoration of itself.
 export function getRenderableEntityLayers(
   level: LdtkLevel,
+  skipIdentifiers?: ReadonlySet<string>,
 ): RenderableEntityLayer[] {
   const total = level.layerInstances.length;
   const layers: RenderableEntityLayer[] = [];
@@ -121,6 +134,7 @@ export function getRenderableEntityLayers(
     const decorations: RenderableEntityTile[] = [];
     for (const inst of li.entityInstances) {
       if (!inst.__tile) continue;
+      if (skipIdentifiers?.has(inst.__identifier)) continue;
       decorations.push({
         tilesetUid: inst.__tile.tilesetUid,
         srcX: inst.__tile.x,
@@ -131,6 +145,8 @@ export function getRenderableEntityLayers(
         py: inst.px[1],
         pivotX: inst.__pivot[0],
         pivotY: inst.__pivot[1],
+        entityW: inst.width,
+        entityH: inst.height,
       });
     }
     if (decorations.length === 0) return;

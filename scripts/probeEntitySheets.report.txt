@@ -1,0 +1,14 @@
+Probe ran 2026-05-10T20:46:49.540Z
+Source: /home/marin/Documents/DarkSpriteLib/registry/registry.json
+Total LDtk *_spawn identifiers: 44
+Resolved (written): 40
+Skipped (mapping = null): 4
+Unmapped (not in MAPPING): 0
+Errors: 0
+
+Skipped — intentional:
+  - Hanger_dude_1_spawn
+  - Hanger_dude_2_spawn
+  - Statue1_spawn
+  - Sword_master_spawn
+

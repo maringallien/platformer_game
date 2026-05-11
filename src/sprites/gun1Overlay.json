@@ -1,0 +1,46 @@
+{
+  "type": "standard",
+  "id": "playable_character/gunslinger_gun1_overlay",
+  "path": "assets/characters/gunslinger/guns/gun1",
+  "mode": "gun1_overlay",
+  "animations": {
+    "idle": {
+      "type": "simple",
+      "key": "idle",
+      "file": "assets/characters/gunslinger/guns/gun1/idle.png",
+      "category": "state",
+      "loops": true,
+      "frames": {
+        "sheetWidth": 128,
+        "sheetHeight": 32,
+        "frameWidth": 32,
+        "frameHeight": 32,
+        "frameCount": 1,
+        "displayScale": 0.89
+      },
+      "originalName": "idle"
+    },
+    "attack1": {
+      "type": "simple",
+      "key": "attack1",
+      "file": "assets/characters/gunslinger/guns/gun1/attack1.png",
+      "category": "attack",
+      "loops": false,
+      "frames": {
+        "sheetWidth": 128,
+        "sheetHeight": 32,
+        "frameWidth": 32,
+        "frameHeight": 32,
+        "frameCount": 4,
+        "displayScale": 0.89
+      },
+      "originalName": "attack1",
+      "stages": {
+        "fire": {
+          "startFrame": 2,
+          "endFrame": 2
+        }
+      }
+    }
+  }
+}

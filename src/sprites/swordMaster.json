@@ -16,7 +16,8 @@
         "frameWidth": 90,
         "frameHeight": 37,
         "frameCount": 10,
-        "anchorX": 12
+        "anchorX": 12,
+        "anchorY": 34
       },
       "originalName": "attack1"
     },
@@ -32,7 +33,8 @@
         "frameWidth": 90,
         "frameHeight": 37,
         "frameCount": 7,
-        "anchorX": 22
+        "anchorX": 19,
+        "anchorY": 32
       },
       "originalName": "attack2"
     },
@@ -48,7 +50,8 @@
         "frameWidth": 90,
         "frameHeight": 37,
         "frameCount": 5,
-        "anchorX": 16
+        "anchorX": 20,
+        "anchorY": 33
       },
       "originalName": "attack3"
     },
@@ -64,7 +67,8 @@
         "frameWidth": 90,
         "frameHeight": 37,
         "frameCount": 5,
-        "anchorX": 9
+        "anchorX": 12,
+        "anchorY": 34
       },
       "originalName": "attack4"
     },
@@ -80,7 +84,8 @@
         "frameWidth": 91,
         "frameHeight": 37,
         "frameCount": 6,
-        "anchorX": 33
+        "anchorX": 34,
+        "anchorY": 34
       },
       "originalName": "attack5"
     },
@@ -95,7 +100,8 @@
         "sheetHeight": 37,
         "frameWidth": 90,
         "frameHeight": 37,
-        "frameCount": 26
+        "frameCount": 26,
+        "anchorY": 33
       },
       "originalName": "attack6",
       "stages": {
@@ -120,7 +126,9 @@
         "sheetHeight": 37,
         "frameWidth": 90,
         "frameHeight": 37,
-        "frameCount": 6
+        "frameCount": 6,
+        "anchorY": 34,
+        "anchorX": 42
       },
       "originalName": "block"
     },
@@ -136,7 +144,8 @@
         "frameWidth": 90,
         "frameHeight": 37,
         "frameCount": 6,
-        "anchorX": 15
+        "anchorX": 22,
+        "anchorY": 33
       },
       "originalName": "dash"
     },
@@ -151,7 +160,9 @@
         "sheetHeight": 37,
         "frameWidth": 90,
         "frameHeight": 37,
-        "frameCount": 6
+        "frameCount": 6,
+        "anchorY": 34,
+        "anchorX": 45
       },
       "originalName": "death"
     },
@@ -166,7 +177,9 @@
         "sheetHeight": 37,
         "frameWidth": 90,
         "frameHeight": 37,
-        "frameCount": 7
+        "frameCount": 7,
+        "anchorY": 32,
+        "anchorX": 46
       },
       "originalName": "fall1"
     },
@@ -182,7 +195,8 @@
         "frameWidth": 90,
         "frameHeight": 37,
         "frameCount": 9,
-        "anchorX": 38
+        "anchorX": 45,
+        "anchorY": 32
       },
       "originalName": "ledge_slide"
     },
@@ -197,7 +211,9 @@
         "sheetHeight": 37,
         "frameWidth": 90,
         "frameHeight": 37,
-        "frameCount": 9
+        "frameCount": 9,
+        "anchorY": 34,
+        "anchorX": 45
       },
       "originalName": "idle"
     },
@@ -212,7 +228,9 @@
         "sheetHeight": 37,
         "frameWidth": 90,
         "frameHeight": 37,
-        "frameCount": 8
+        "frameCount": 8,
+        "anchorY": 34,
+        "anchorX": 45
       },
       "originalName": "jog"
     },
@@ -244,7 +262,8 @@
         "sheetHeight": 37,
         "frameWidth": 90,
         "frameHeight": 37,
-        "frameCount": 5
+        "frameCount": 5,
+        "anchorY": 33
       },
       "originalName": "roll"
     },
@@ -259,7 +278,8 @@
         "sheetHeight": 37,
         "frameWidth": 90,
         "frameHeight": 37,
-        "frameCount": 8
+        "frameCount": 8,
+        "anchorY": 33
       },
       "originalName": "run"
     },
@@ -274,7 +294,8 @@
         "sheetHeight": 37,
         "frameWidth": 90,
         "frameHeight": 37,
-        "frameCount": 8
+        "frameCount": 8,
+        "anchorY": 33
       },
       "originalName": "sprint"
     },
@@ -289,7 +310,8 @@
         "sheetHeight": 37,
         "frameWidth": 90,
         "frameHeight": 37,
-        "frameCount": 2
+        "frameCount": 2,
+        "anchorY": 33
       },
       "originalName": "take_hit"
     }

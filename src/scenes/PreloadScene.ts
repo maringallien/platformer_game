@@ -8,7 +8,9 @@ import {
 } from '../level/TilesetRegistry';
 import {
   preloadAllCharacters,
+  preloadAllEntities,
   registerAllCharacterAnimations,
+  registerAllEntityAnimations,
 } from '../sprites/characterLoader';
 
 export class PreloadScene extends Phaser.Scene {
@@ -19,6 +21,7 @@ export class PreloadScene extends Phaser.Scene {
   preload(): void {
     this.createLoadingBar();
     preloadAllCharacters(this);
+    preloadAllEntities(this);
 
     // Load every level's tilesets up front: GameScene renders all levels in
     // the same world so the player can walk between them, so partial loading
@@ -30,6 +33,7 @@ export class PreloadScene extends Phaser.Scene {
 
   create(): void {
     registerAllCharacterAnimations(this);
+    registerAllEntityAnimations(this);
     this.scene.start(SCENE_KEYS.GAME);
   }
 

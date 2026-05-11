@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
 import type { LdtkEntityInstance } from '../ldtk/types';
+import { AnimatedEntity } from './AnimatedEntity';
+import { Enemy } from './Enemy';
+import { listEntityRegistryEntries } from './entityRegistryLoader';
 import { Player } from './Player';
 
 export type EntityFactoryFn = (
@@ -7,18 +10,68 @@ export type EntityFactoryFn = (
   instance: LdtkEntityInstance,
 ) => Phaser.GameObjects.GameObject;
 
-// Single source of truth for "LDtk entity identifier → in-game spawn".
-// Adding a new entity type means registering one entry here; no other file
-// in the entity pipeline needs to change.
-const FACTORIES: Readonly<Record<string, EntityFactoryFn>> = {
+// LDtk identifiers handled by gameplay code rather than the JSON-authored
+// entity registry. Currently just the player; future gameplay-bearing
+// entities (interactive NPCs, doors with logic, etc.) get hand-written
+// factories here.
+const SPECIAL_FACTORIES: Readonly<Record<string, EntityFactoryFn>> = {
   Sword_master_spawn: (scene, instance) => {
     const { x, y } = pivotCenter(instance);
     return new Player(scene, x, y);
   },
 };
 
+// Single source of truth for "LDtk entity identifier → in-game spawn".
+// Composed of SPECIAL_FACTORIES (hand-authored) plus an auto-generated
+// AnimatedEntity factory for every identifier in the entity registry.
+// Adding a new animated entity is one JSON entry; adding a new gameplay
+// entity is one entry in SPECIAL_FACTORIES.
+const FACTORIES: Readonly<Record<string, EntityFactoryFn>> = (() => {
+  const out: Record<string, EntityFactoryFn> = { ...SPECIAL_FACTORIES };
+  for (const { identifier, config } of listEntityRegistryEntries()) {
+    if (identifier in out) {
+      // Defense against silent overwrites: if an identifier is registered
+      // both as a special factory and in the entity registry, the special
+      // factory wins but we want to know about the duplication.
+      throw new Error(
+        `Entity identifier "${identifier}" appears in both SPECIAL_FACTORIES and entityRegistry.json — remove the duplication`,
+      );
+    }
+    // Presence of a behavior block is the single switch between Enemy (has
+    // health/AI/attacks) and AnimatedEntity (pure-decoration). Capture the
+    // boolean at factory-build time so spawn-time work is just a constructor
+    // call.
+    if (config.behavior) {
+      out[identifier] = (scene, instance) => {
+        const { x, y } = pivotCenter(instance);
+        return new Enemy(scene, x, y, identifier);
+      };
+    } else {
+      out[identifier] = (scene, instance) => {
+        const { x, y } = pivotCenter(instance);
+        return new AnimatedEntity(scene, x, y, identifier);
+      };
+    }
+  }
+  return out;
+})();
+
+// Identifiers of entities spawned dynamically by this factory. Exposed so the
+// LDtk renderer can suppress the static decoration tile that LDtk includes for
+// these (every entity def carries a __tile preview rect for the editor) —
+// otherwise the entity would render twice: once as the live sprite and once
+// as a frozen image at the spawn location. Auto-derived from FACTORIES so
+// registry additions update the suppression set without a manual sync point.
+export const DYNAMIC_ENTITY_IDENTIFIERS: ReadonlySet<string> = new Set(
+  Object.keys(FACTORIES),
+);
+
 export interface SpawnedEntities {
   player: Player | null;
+  enemies: ReadonlyArray<Enemy>;
+  // Pure-decoration AnimatedEntities (chests, ambient animals, traps).
+  // Kept distinct from `enemies` so GameScene can iterate enemies per-frame
+  // without an instanceof check.
   others: ReadonlyArray<Phaser.GameObjects.GameObject>;
 }
 
@@ -27,6 +80,7 @@ export function spawnEntities(
   instances: ReadonlyArray<LdtkEntityInstance>,
 ): SpawnedEntities {
   let player: Player | null = null;
+  const enemies: Enemy[] = [];
   const others: Phaser.GameObjects.GameObject[] = [];
   const unhandled = new Set<string>();
 
@@ -49,6 +103,8 @@ export function spawnEntities(
         );
       }
       player = obj;
+    } else if (obj instanceof Enemy) {
+      enemies.push(obj);
     } else {
       others.push(obj);
     }
@@ -62,7 +118,7 @@ export function spawnEntities(
     );
   }
 
-  return { player, others };
+  return { player, enemies, others };
 }
 
 // Symmetric teardown for spawnEntities. Optionally preserves the player so
@@ -73,6 +129,9 @@ export function destroyEntities(
   spawned: SpawnedEntities,
   options: { preservePlayer?: boolean } = {},
 ): void {
+  for (const enemy of spawned.enemies) {
+    enemy.destroy();
+  }
   for (const obj of spawned.others) {
     obj.destroy();
   }

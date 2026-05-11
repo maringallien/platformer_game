@@ -5,14 +5,12 @@ import {
   type GunslingerProjectileMode,
 } from '../sprites/characterLoader';
 
-export type ProjectileDirection = 1 | -1;
-
 export interface ProjectileSpawnOptions {
   x: number;
   y: number;
   mode: GunslingerProjectileMode;
-  direction: ProjectileDirection;
-  speed: number;
+  velocityX: number;
+  velocityY: number;
 }
 
 export class Projectile extends Phaser.Physics.Arcade.Sprite {
@@ -44,8 +42,14 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite {
     // before our handler swaps to the explode animation. The 4th arg enables
     // the worldbounds event for this body.
     this.body.setCollideWorldBounds(true, 0, 0, true);
-    this.setFlipX(options.direction === -1);
-    this.setVelocityX(options.speed * options.direction);
+
+    this.body.setVelocity(options.velocityX, options.velocityY);
+    // Rotate to face the velocity direction; mirror Y when aiming into the
+    // left half-plane so the sprite never renders upside-down (mirrors the
+    // PlayerGun's flipY-when-aimed-left convention).
+    const angle = Math.atan2(options.velocityY, options.velocityX);
+    this.setRotation(angle);
+    this.setFlipY(Math.abs(angle) > Math.PI / 2);
 
     this.play(idleKey);
 
@@ -75,6 +79,10 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite {
     });
   }
 
+  hasExploded(): boolean {
+    return this.exploded;
+  }
+
   onImpact(): void {
     if (this.exploded) return;
     this.exploded = true;
@@ -85,6 +93,12 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite {
     }
 
     this.setVelocity(0, 0);
+    // Disabling the body removes it from Arcade's overlap/collision lookups,
+    // so further per-frame overlap callbacks against this projectile stop
+    // firing. Without this, the projectile keeps overlapping its target for
+    // the duration of the explode animation (many frames) and stacks damage
+    // ticks — a single shot then kills enemies in one hit regardless of HP.
+    this.body.enable = false;
 
     const explodeKey = projectileAnimKey(this.mode, 'explode');
     this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {

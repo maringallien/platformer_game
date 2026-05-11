@@ -15,6 +15,11 @@ export interface FrameData {
   // Frame row (1-based pixel from top of frame) where the body's bottom
   // edge should sit. Defaults to frameHeight (body bottom = frame bottom).
   anchorY?: number;
+  // Visual-only scale applied to the rendered sprite. Default 1.
+  // Anchors stay in source-pixel terms; the renderer rescales the physics
+  // body's source size so the world-space hitbox stays at PHYSICS_BODY size
+  // regardless of displayScale.
+  displayScale?: number;
   startFrame?: number;
   ambiguous?: boolean;
 }
@@ -50,13 +55,24 @@ export type CharacterModeId =
   | 'gunslinger_gun1'
   | 'gunslinger_gun2';
 
+// Non-wheel registries used as `sourceMode` targets when one mode borrows
+// another's spritesheet, plus the gun-overlay registries rendered on top of
+// the body via PlayerGun. None are selectable by the player and none belong
+// in MODE_ORDER. They live alongside CharacterModeId so the registry pipeline
+// (preload, register, key resolution) treats them uniformly.
+export type OverlayModeId =
+  | 'gunslinger_body'
+  | 'gun1_overlay'
+  | 'gun2_overlay';
+
+// Any mode id that can appear as a `sourceMode` on a ResolvedAnimation.
+export type AnyModeId = CharacterModeId | OverlayModeId;
+
 // Cross-mode action vocabulary. Player.ts speaks in these abstract keys; the
 // resolver decides which concrete registry key (and frame) each mode plays.
 export type LogicalAnimationKey =
   | 'idle'
-  | 'walk'
   | 'run'
-  | 'sprint'
   | 'fall'
   | 'wall_slide'
   | 'attack1'
@@ -75,4 +91,9 @@ export type LogicalAnimationKey =
 
 export interface ResolvedAnimation {
   registryKey: string;
+  // When set, resolves the animation against this mode's spritesheet instead
+  // of the calling mode. Used when one character mode borrows another's
+  // animation (e.g. gunslinger has no dash art and reuses sword_master's),
+  // or routes to a shared overlay registry like 'gunslinger_body'.
+  sourceMode?: AnyModeId;
 }

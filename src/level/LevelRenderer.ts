@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { DYNAMIC_ENTITY_IDENTIFIERS } from '../entities/EntityFactory';
 import {
   getRenderableEntityLayers,
   getRenderableLayers,
@@ -15,6 +16,12 @@ import { tilesetTextureKey } from './TilesetRegistry';
 const FLIP_HORIZONTAL = 1;
 const FLIP_VERTICAL = 2;
 
+// Per-level mask is inflated by this many pixels on every side so adjacent
+// levels' masks overlap at every shared edge — kills the 1-pixel seam where
+// the scene clear color was bleeding through between two pixel-aligned but
+// non-overlapping masks.
+const MASK_OVERLAP_PX = 1;
+
 export interface RenderedLayer {
   identifier: string;
   type: LdtkLayerType;
@@ -27,6 +34,12 @@ export interface RenderedLevel {
   widthPx: number;
   heightPx: number;
   layers: ReadonlyArray<RenderedLayer>;
+  // Hidden Graphics that backs a per-level GeometryMask, applied to every
+  // layer container so visuals never render outside the level's rect. With
+  // the camera now allowed to scroll into adjacent levels, any LDtk-authored
+  // spillage (parallax tiles, decoration entities placed past the level
+  // bounds) would otherwise become visible in inter-level gaps.
+  maskGraphics: Phaser.GameObjects.Graphics;
 }
 
 // Renders each LDtk tile as an individual Image at its exact px position.
@@ -82,7 +95,10 @@ export function renderLevel(
   // per-layer + depth-by-layer-index scheme as the tile layers above, so the
   // user's LDtk-authored stacking between tile layers and decoration layers
   // is preserved.
-  const entityLayers = getRenderableEntityLayers(level);
+  const entityLayers = getRenderableEntityLayers(
+    level,
+    DYNAMIC_ENTITY_IDENTIFIERS,
+  );
   for (const src of entityLayers) {
     const container = scene.add.container(level.worldX, level.worldY);
     container.setDepth(src.depth);
@@ -105,10 +121,35 @@ export function renderLevel(
     out.push({ identifier: src.identifier, type: 'Entities', container });
   }
 
+  // Build a rectangular world-space mask matching the level's bounds and
+  // apply it to every layer container. scene.make.graphics() (vs add) keeps
+  // the mask source off the display list — its geometry is consumed by the
+  // GeometryMask without rendering on its own. Color choice (white) is
+  // arbitrary; geometry masks ignore color and use only fill coverage.
+  //
+  // The mask rect is inflated by MASK_OVERLAP_PX on every side so adjacent
+  // levels' masks overlap at every shared edge. Without this, seam pixels
+  // can land in a sub-pixel zone where neither mask wins, letting the scene
+  // clear color show through as a 1-pixel line. The cost is a 1-px ring of
+  // tolerated spillage outside each level — invisible in practice.
+  const maskGraphics = scene.make.graphics();
+  maskGraphics.fillStyle(0xffffff);
+  maskGraphics.fillRect(
+    level.worldX - MASK_OVERLAP_PX,
+    level.worldY - MASK_OVERLAP_PX,
+    level.pxWid + MASK_OVERLAP_PX * 2,
+    level.pxHei + MASK_OVERLAP_PX * 2,
+  );
+  const mask = maskGraphics.createGeometryMask();
+  for (const rendered of out) {
+    rendered.container.setMask(mask);
+  }
+
   return {
     widthPx: level.pxWid,
     heightPx: level.pxHei,
     layers: out,
+    maskGraphics,
   };
 }
 
@@ -118,6 +159,17 @@ export function renderLevel(
 // each unique entity-tile crop and reference it by name. Frames are cached
 // across renders by their (uid + src rect) key — re-rendering after HMR
 // reuses existing frames instead of duplicating them.
+//
+// Implements LDtk's tileRenderMode=FitInside: the source tile is scaled
+// uniformly (preserving aspect ratio) to fit within the entity's bounding
+// box, then anchored at the entity's pivot. Anchoring at the pivot — rather
+// than centering the scaled tile inside the entity bounds — matters when
+// pivot is non-centered: e.g. a ground prop with pivot=[0.5,1] and a tile
+// taller-than-wide gets vertical letterbox; centering would make it float
+// above the ground by half the letterbox height. Pivot-anchor keeps the
+// pivot point on the ground regardless of aspect mismatch, which is what
+// LDtk's editor shows. Every entity in this project uses FitInside; if that
+// ever changes (Stretch, Cover, Repeat, etc.), this is the place to branch.
 function createEntityTileImage(
   scene: Phaser.Scene,
   textureKey: string,
@@ -128,8 +180,12 @@ function createEntityTileImage(
   if (!texture.has(frameName)) {
     texture.add(frameName, 0, dec.srcX, dec.srcY, dec.srcW, dec.srcH);
   }
+  const scale = Math.min(dec.entityW / dec.srcW, dec.entityH / dec.srcH);
+  const scaledW = dec.srcW * scale;
+  const scaledH = dec.srcH * scale;
   const img = scene.add.image(dec.px, dec.py, textureKey, frameName);
   img.setOrigin(dec.pivotX, dec.pivotY);
+  img.setDisplaySize(scaledW, scaledH);
   return img;
 }
 
@@ -146,7 +202,13 @@ export function findRenderedLayer(
 // Collision tilemaps are owned by GameScene/LevelCollision and torn down
 // separately — they don't appear in RenderedLevel.layers.
 export function destroyRenderedLevel(rendered: RenderedLevel): void {
+  // Clear masks before destroying the backing Graphics — leaving a mask
+  // pointing at a destroyed Graphics makes the next render frame throw.
+  // clearMask(false) leaves the mask object itself for GC; we destroy the
+  // shared source Graphics explicitly below.
   for (const layer of rendered.layers) {
+    layer.container.clearMask(false);
     layer.container.destroy(true);
   }
+  rendered.maskGraphics.destroy();
 }

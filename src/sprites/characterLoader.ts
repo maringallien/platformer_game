@@ -1,13 +1,23 @@
 import Phaser from 'phaser';
+import {
+  entityAnimFullKey,
+  getEntityAnimByFullKey,
+  listEntityRegistryEntries,
+} from '../entities/entityRegistryLoader';
 import swordMasterRaw from './swordMaster.json';
 import swordMasterMagicRaw from './swordMasterMagic.json';
 import gunslingerGun1Raw from './gunslingerGun1.json';
 import gunslingerGun2Raw from './gunslingerGun2.json';
+import gunslingerBodyRaw from './gunslingerBody.json';
+import gun1OverlayRaw from './gun1Overlay.json';
+import gun2OverlayRaw from './gun2Overlay.json';
 import type {
   AnimationStage,
+  AnyModeId,
   CharacterModeId,
   CharacterModeRegistry,
   LogicalAnimationKey,
+  OverlayModeId,
   ResolvedAnimation,
   SimpleAnimation,
 } from './characterTypes';
@@ -16,12 +26,18 @@ const REGULAR_REGISTRY = swordMasterRaw as CharacterModeRegistry;
 const MAGIC_REGISTRY = swordMasterMagicRaw as CharacterModeRegistry;
 const GUN1_REGISTRY = gunslingerGun1Raw as CharacterModeRegistry;
 const GUN2_REGISTRY = gunslingerGun2Raw as CharacterModeRegistry;
+const GUNSLINGER_BODY_REGISTRY = gunslingerBodyRaw as CharacterModeRegistry;
+const GUN1_OVERLAY_REGISTRY = gun1OverlayRaw as CharacterModeRegistry;
+const GUN2_OVERLAY_REGISTRY = gun2OverlayRaw as CharacterModeRegistry;
 
 const REGISTRIES: ReadonlyArray<CharacterModeRegistry> = [
   REGULAR_REGISTRY,
   MAGIC_REGISTRY,
   GUN1_REGISTRY,
   GUN2_REGISTRY,
+  GUNSLINGER_BODY_REGISTRY,
+  GUN1_OVERLAY_REGISTRY,
+  GUN2_OVERLAY_REGISTRY,
 ];
 
 export const SWORD_MASTER_MODE: CharacterModeId = 'sword_master';
@@ -47,9 +63,7 @@ type ModeResolverTable = Partial<
 const MODE_RESOLVERS: Record<CharacterModeId, ModeResolverTable> = {
   sword_master: {
     idle: { registryKey: 'idle' },
-    walk: { registryKey: 'jog' },
     run: { registryKey: 'run' },
-    sprint: { registryKey: 'sprint' },
     fall: { registryKey: 'fall1' },
     wall_slide: { registryKey: 'ledge_slide' },
     attack1: { registryKey: 'attack1' },
@@ -66,14 +80,19 @@ const MODE_RESOLVERS: Record<CharacterModeId, ModeResolverTable> = {
     death: { registryKey: 'death' },
     take_hit: { registryKey: 'take_hit' },
   },
+  // Mixed sourcing per the user's design:
+  //   - idle/run/fall/wall_slide/jump → gunslinger_body (no_gun art);
+  //     PlayerGun overlays a separate gun sprite on top of these frames.
+  //   - death/roll/take_hit/ledge_climb → own gun-mode registry (the gun is
+  //     baked into those spritesheets); PlayerGun is hidden during these.
+  // attack1 is intentionally null: firing animates the gun overlay only;
+  // the body keeps tracking physics state (idle/run/fall) during the shot.
   gunslinger_gun1: {
-    idle: { registryKey: 'idle' },
-    walk: { registryKey: 'run' },
-    run: { registryKey: 'run' },
-    sprint: { registryKey: 'run' },
-    fall: { registryKey: 'fall' },
-    wall_slide: { registryKey: 'fall' },
-    attack1: { registryKey: 'attack1' },
+    idle: { registryKey: 'idle', sourceMode: 'gunslinger_body' },
+    run: { registryKey: 'run', sourceMode: 'gunslinger_body' },
+    fall: { registryKey: 'fall', sourceMode: 'gunslinger_body' },
+    wall_slide: { registryKey: 'ledge_slide', sourceMode: 'gunslinger_body' },
+    attack1: null,
     attack2: null,
     attack3: null,
     attack4: null,
@@ -82,19 +101,17 @@ const MODE_RESOLVERS: Record<CharacterModeId, ModeResolverTable> = {
     dash: null,
     roll: { registryKey: 'roll' },
     block: null,
-    ledge_climb: null,
-    jump: { registryKey: 'jump' },
+    ledge_climb: { registryKey: 'ledge_grab' },
+    jump: { registryKey: 'jump', sourceMode: 'gunslinger_body' },
     death: { registryKey: 'death' },
     take_hit: { registryKey: 'take_hit' },
   },
   gunslinger_gun2: {
-    idle: { registryKey: 'idle' },
-    walk: { registryKey: 'run' },
-    run: { registryKey: 'run' },
-    sprint: { registryKey: 'run' },
-    fall: { registryKey: 'fall' },
-    wall_slide: { registryKey: 'fall' },
-    attack1: { registryKey: 'attack1' },
+    idle: { registryKey: 'idle', sourceMode: 'gunslinger_body' },
+    run: { registryKey: 'run', sourceMode: 'gunslinger_body' },
+    fall: { registryKey: 'fall', sourceMode: 'gunslinger_body' },
+    wall_slide: { registryKey: 'ledge_slide', sourceMode: 'gunslinger_body' },
+    attack1: null,
     attack2: null,
     attack3: null,
     attack4: null,
@@ -103,8 +120,8 @@ const MODE_RESOLVERS: Record<CharacterModeId, ModeResolverTable> = {
     dash: null,
     roll: { registryKey: 'roll' },
     block: null,
-    ledge_climb: null,
-    jump: { registryKey: 'jump' },
+    ledge_climb: { registryKey: 'ledge_grab' },
+    jump: { registryKey: 'jump', sourceMode: 'gunslinger_body' },
     death: { registryKey: 'death' },
     take_hit: { registryKey: 'take_hit' },
   },
@@ -139,13 +156,32 @@ const animationByFullKey: ReadonlyMap<string, SimpleAnimation> = (() => {
   return map;
 })();
 
+// fullKey → owning registry's mode. Used by Player to decide gun-overlay
+// visibility: if the body's currently-playing anim came from `gunslinger_body`,
+// the overlay shows; if it came from a baked-gun registry, the overlay hides.
+const animationSourceMode: ReadonlyMap<string, AnyModeId> = (() => {
+  const map = new Map<string, AnyModeId>();
+  for (const registry of REGISTRIES) {
+    const mode = registryPrefix(registry) as AnyModeId;
+    for (const anim of Object.values(registry.animations)) {
+      map.set(fullKeyFor(registry, anim.key), mode);
+    }
+  }
+  return map;
+})();
+
+export function getAnimationSourceMode(fullAnimKey: string): AnyModeId | null {
+  return animationSourceMode.get(fullAnimKey) ?? null;
+}
+
 export function animKey(
   mode: CharacterModeId,
   logical: LogicalAnimationKey,
 ): string | null {
   const resolved = MODE_RESOLVERS[mode][logical];
   if (!resolved) return null;
-  return `${mode}_${resolved.registryKey}`;
+  const sourceMode = resolved.sourceMode ?? mode;
+  return `${sourceMode}_${resolved.registryKey}`;
 }
 
 export function isActionAvailable(
@@ -204,15 +240,28 @@ export interface RegisterAnimationsOptions {
 export interface SpriteAnchor {
   originX: number;
   originY: number;
+  // Source-pixel size to pass to body.setSize. Phaser scales body.width to
+  // sourceWidth * sprite.scaleX each frame, so dividing by displayScale here
+  // keeps the world-space hitbox at PHYSICS_BODY size regardless of scale.
+  bodySourceWidth: number;
+  bodySourceHeight: number;
+  // Source-pixel offset to pass to body.setOffset. Phaser computes
+  //   body.position = sprite.position - displayOrigin*scale + offset*scale
+  // so offsets are likewise interpreted pre-scale.
   bodyOffsetX: number;
   bodyOffsetY: number;
+  // Visual scale to apply via sprite.setScale.
+  displayScale: number;
 }
 
 const DEFAULT_ANCHOR: SpriteAnchor = {
   originX: 0.5,
   originY: 0.5,
+  bodySourceWidth: 0,
+  bodySourceHeight: 0,
   bodyOffsetX: 0,
   bodyOffsetY: 0,
+  displayScale: 1,
 };
 
 export function getAnimationStage(
@@ -222,25 +271,173 @@ export function getAnimationStage(
   return animationByFullKey.get(fullAnimKey)?.stages?.[stageName];
 }
 
+// Prefix used on the synthetic `mode` field for animated-entity listings.
+// The resizer routes saves by looking at this prefix on listing.mode; see
+// tools/anim-resizer/persist.ts. Must match entityRegistryLoader's
+// ENTITY_KEY_PREFIX so fullKey resolution stays consistent.
+export const ENTITY_LISTING_MODE_PREFIX = 'entity_';
+
+export interface AnimationListing {
+  fullKey: string;
+  // Widened from AnyModeId so synthetic per-entity modes (e.g.
+  // `entity_Caged_spider_spawn`) fit alongside the fixed player modes.
+  // Consumers only treat this as an opaque string for routing.
+  mode: string;
+  registry: CharacterModeRegistry;
+  anim: SimpleAnimation;
+  // True when this listing was synthesized from the JSON entity registry
+  // (one per LDtk identifier). Player listings have this undefined/false.
+  isEntity?: boolean;
+  // The LDtk identifier this entity was synthesized from; absent on
+  // player listings.
+  entityIdentifier?: string;
+}
+
+// Tool-side iteration over every registry's animations. Mirrors the data
+// preloadAllCharacters/registerAllCharacterAnimations walk, exposed as a
+// flat list for the resizer UI. Includes both the player registries (one
+// per CharacterModeRegistry) and the entity registry (one synthetic
+// CharacterModeRegistry per LDtk identifier).
+export function listAnimations(): ReadonlyArray<AnimationListing> {
+  const out: AnimationListing[] = [];
+  for (const registry of REGISTRIES) {
+    const mode = registryPrefix(registry) as AnyModeId;
+    for (const anim of Object.values(registry.animations)) {
+      out.push({
+        fullKey: fullKeyFor(registry, anim.key),
+        mode,
+        registry,
+        anim,
+      });
+    }
+  }
+  for (const { identifier, config } of listEntityRegistryEntries()) {
+    const syntheticMode = `${ENTITY_LISTING_MODE_PREFIX}${identifier}`;
+    // Build a CharacterModeRegistry-shaped object per entity. The animations
+    // are flattened from AnimatedEntityAnimConfig (where frame fields are
+    // direct) into SimpleAnimation (where they nest under .frames) so every
+    // downstream resizer file (state, EditPanel, PreviewScene) keeps working
+    // against one shape.
+    const animations: Record<string, SimpleAnimation> = {};
+    for (const [animKey, entityAnim] of Object.entries(config.animations)) {
+      animations[animKey] = {
+        type: 'simple',
+        key: animKey,
+        file: entityAnim.file,
+        category: 'state',
+        loops: entityAnim.loops !== false,
+        frames: {
+          sheetWidth: entityAnim.frameWidth * entityAnim.frameCount,
+          sheetHeight: entityAnim.frameHeight,
+          frameWidth: entityAnim.frameWidth,
+          frameHeight: entityAnim.frameHeight,
+          frameCount: entityAnim.frameCount,
+          ...(entityAnim.anchorX !== undefined
+            ? { anchorX: entityAnim.anchorX }
+            : {}),
+          ...(entityAnim.anchorY !== undefined
+            ? { anchorY: entityAnim.anchorY }
+            : {}),
+          ...(entityAnim.displayScale !== undefined
+            ? { displayScale: entityAnim.displayScale }
+            : {}),
+        },
+        originalName: animKey,
+      };
+    }
+    const syntheticRegistry: CharacterModeRegistry = {
+      type: 'standard',
+      id: syntheticMode,
+      path: `entityRegistry/${identifier}`,
+      mode: syntheticMode,
+      animations,
+    };
+    for (const anim of Object.values(animations)) {
+      out.push({
+        fullKey: entityAnimFullKey(identifier, anim.key),
+        mode: syntheticMode,
+        registry: syntheticRegistry,
+        anim,
+        isEntity: true,
+        entityIdentifier: identifier,
+      });
+    }
+  }
+  return out;
+}
+
+// Returns the natural playback duration (ms) of an animation at the default
+// character FPS. Callers wanting to scale playback speed can divide this by
+// a multiplier and pass the result as Phaser's `duration` play option.
+export function getAnimationNaturalDurationMs(
+  fullAnimKey: string,
+): number | null {
+  const anim = animationByFullKey.get(fullAnimKey);
+  if (!anim) return null;
+  return (anim.frames.frameCount * 1000) / DEFAULT_CHARACTER_FPS;
+}
+
+// Normalized frame metadata shared by player registries (SimpleAnimation)
+// and the entity registry (AnimatedEntityAnimConfig). Both shapes carry the
+// same anchor fields under different nesting; this view lets getSpriteAnchor
+// resolve either uniformly so AnimatedEntity reuses the player's anchor math.
+interface FrameMetadata {
+  readonly frameWidth: number;
+  readonly frameHeight: number;
+  readonly anchorX?: number;
+  readonly anchorY?: number;
+  readonly displayScale?: number;
+}
+
+function lookupFrameMetadata(fullAnimKey: string): FrameMetadata | null {
+  const playerAnim = animationByFullKey.get(fullAnimKey);
+  if (playerAnim) return playerAnim.frames;
+  const entityAnim = getEntityAnimByFullKey(fullAnimKey);
+  if (entityAnim) {
+    return {
+      frameWidth: entityAnim.frameWidth,
+      frameHeight: entityAnim.frameHeight,
+      anchorX: entityAnim.anchorX,
+      anchorY: entityAnim.anchorY,
+      displayScale: entityAnim.displayScale,
+    };
+  }
+  return null;
+}
+
 export function getSpriteAnchor(
   fullAnimKey: string,
   bodyWidth: number,
   bodyHeight: number,
   flipX: boolean = false,
 ): SpriteAnchor {
-  const anim = animationByFullKey.get(fullAnimKey);
-  if (!anim) {
+  const frame = lookupFrameMetadata(fullAnimKey);
+  if (!frame) {
     return DEFAULT_ANCHOR;
   }
-  const { frameWidth, frameHeight, anchorX, anchorY } = anim.frames;
+  const { frameWidth, frameHeight, anchorX, anchorY, displayScale } = frame;
+  const scale = displayScale ?? 1;
   const ax = anchorX ?? frameWidth / 2;
   const ay = anchorY ?? frameHeight;
   const effectiveAx = flipX ? frameWidth - ax : ax;
+  // Body math at scale s:
+  //   body.width  = sourceWidth  * s  → sourceWidth  = PHYSICS_BODY / s
+  //   body.height = sourceHeight * s  → sourceHeight = PHYSICS_BODY / s
+  // So that body.width/height in world space stay equal to PHYSICS_BODY.
+  // Body offset (pre-scale) places body.center.x at the anchor column and
+  // body.bottom at the anchor row in world space:
+  //   offset.x = effectiveAx - bodyWidth  / (2 * s)
+  //   offset.y = ay          - bodyHeight /      s
+  // These reduce to the original (effectiveAx - bodyWidth/2, ay - bodyHeight)
+  // when s = 1, so existing JSON renders identically.
   return {
     originX: effectiveAx / frameWidth,
     originY: 0.5,
-    bodyOffsetX: effectiveAx - bodyWidth / 2,
-    bodyOffsetY: ay - bodyHeight,
+    bodySourceWidth: bodyWidth / scale,
+    bodySourceHeight: bodyHeight / scale,
+    bodyOffsetX: effectiveAx - bodyWidth / (2 * scale),
+    bodyOffsetY: ay - bodyHeight / scale,
+    displayScale: scale,
   };
 }
 
@@ -271,4 +468,72 @@ export function projectileAnimKey(
   kind: ProjectileAnimKind,
 ): string {
   return `${mode}_projectile_${kind}`;
+}
+
+// Maps a wheel-selectable gun mode to the matching gun-overlay registry mode.
+// Kept as a function (not a constant union) so a future overlay swap (e.g.
+// reskinning gun1) only needs to update this map.
+const GUN_OVERLAY_MODE_BY_GUN: Readonly<
+  Record<GunslingerProjectileMode, OverlayModeId>
+> = {
+  gunslinger_gun1: 'gun1_overlay',
+  gunslinger_gun2: 'gun2_overlay',
+};
+
+export function gunOverlayModeFor(
+  mode: GunslingerProjectileMode,
+): OverlayModeId {
+  return GUN_OVERLAY_MODE_BY_GUN[mode];
+}
+
+export type GunOverlayAnimKind = 'idle' | 'attack1';
+
+export function gunOverlayAnimKey(
+  mode: GunslingerProjectileMode,
+  kind: GunOverlayAnimKind,
+): string {
+  return `${gunOverlayModeFor(mode)}_${kind}`;
+}
+
+// Mirrors preloadAllCharacters for the JSON-authored animated-entity
+// registry. Each (identifier, animKey) becomes one Phaser spritesheet
+// under the namespaced entityAnimFullKey so entity textures never collide
+// with player textures. Called from PreloadScene.preload().
+export function preloadAllEntities(scene: Phaser.Scene): void {
+  for (const { identifier, config } of listEntityRegistryEntries()) {
+    for (const [animKey, anim] of Object.entries(config.animations)) {
+      const fullKey = entityAnimFullKey(identifier, animKey);
+      scene.load.spritesheet(fullKey, anim.file, {
+        frameWidth: anim.frameWidth,
+        frameHeight: anim.frameHeight,
+      });
+    }
+  }
+}
+
+// Mirrors registerAllCharacterAnimations for the entity registry. Creates
+// Phaser Animation objects keyed by entityAnimFullKey so AnimatedEntity.play
+// can reference them directly.
+export function registerAllEntityAnimations(
+  scene: Phaser.Scene,
+  options: RegisterAnimationsOptions = {},
+): void {
+  const fps = options.defaultFps ?? DEFAULT_CHARACTER_FPS;
+  for (const { identifier, config } of listEntityRegistryEntries()) {
+    for (const [animKey, anim] of Object.entries(config.animations)) {
+      const fullKey = entityAnimFullKey(identifier, animKey);
+      if (scene.anims.exists(fullKey)) continue;
+      scene.anims.create({
+        key: fullKey,
+        frames: scene.anims.generateFrameNumbers(fullKey, {
+          start: 0,
+          end: anim.frameCount - 1,
+        }),
+        frameRate: fps,
+        // anim.loops defaults to true in entityRegistryLoader; -1 = infinite
+        // repeat. One-shot animations like 'death' set loops:false in JSON.
+        repeat: anim.loops ? -1 : 0,
+      });
+    }
+  }
 }

@@ -1,0 +1,137 @@
+{
+  "type": "standard",
+  "id": "playable_character/gunslinger_body",
+  "path": "assets/characters/gunslinger/animations_no_gun",
+  "mode": "gunslinger_body",
+  "animations": {
+    "idle": {
+      "type": "simple",
+      "key": "idle",
+      "file": "assets/characters/gunslinger/animations_no_gun/idle.png",
+      "category": "movement",
+      "loops": true,
+      "frames": {
+        "sheetWidth": 48,
+        "sheetHeight": 48,
+        "frameWidth": 48,
+        "frameHeight": 48,
+        "frameCount": 1,
+        "displayScale": 0.89
+      },
+      "originalName": "idle"
+    },
+    "death": {
+      "type": "simple",
+      "key": "death",
+      "file": "assets/characters/gunslinger/animations_no_gun/death.png",
+      "category": "state",
+      "loops": false,
+      "frames": {
+        "sheetWidth": 192,
+        "sheetHeight": 48,
+        "frameWidth": 48,
+        "frameHeight": 48,
+        "frameCount": 4,
+        "displayScale": 0.89
+      },
+      "originalName": "death"
+    },
+    "fall": {
+      "type": "simple",
+      "key": "fall",
+      "file": "assets/characters/gunslinger/animations_no_gun/fall.png",
+      "category": "movement",
+      "loops": false,
+      "frames": {
+        "sheetWidth": 48,
+        "sheetHeight": 48,
+        "frameWidth": 48,
+        "frameHeight": 48,
+        "frameCount": 1,
+        "displayScale": 0.89
+      },
+      "originalName": "fall"
+    },
+    "jump": {
+      "type": "simple",
+      "key": "jump",
+      "file": "assets/characters/gunslinger/animations_no_gun/jump.png",
+      "category": "movement",
+      "loops": false,
+      "frames": {
+        "sheetWidth": 48,
+        "sheetHeight": 48,
+        "frameWidth": 48,
+        "frameHeight": 48,
+        "frameCount": 1,
+        "anchorY": 46,
+        "displayScale": 0.89
+      },
+      "originalName": "jump"
+    },
+    "ledge_slide": {
+      "type": "simple",
+      "key": "ledge_slide",
+      "file": "assets/characters/gunslinger/animations_no_gun/ledge_slide.png",
+      "category": "traversal",
+      "loops": true,
+      "frames": {
+        "sheetWidth": 288,
+        "sheetHeight": 48,
+        "frameWidth": 48,
+        "frameHeight": 48,
+        "frameCount": 6,
+        "displayScale": 0.89
+      },
+      "originalName": "ledge_slide"
+    },
+    "roll": {
+      "type": "simple",
+      "key": "roll",
+      "file": "assets/characters/gunslinger/animations_no_gun/roll.png",
+      "category": "movement",
+      "loops": false,
+      "frames": {
+        "sheetWidth": 432,
+        "sheetHeight": 48,
+        "frameWidth": 48,
+        "frameHeight": 48,
+        "frameCount": 9,
+        "displayScale": 0.89
+      },
+      "originalName": "roll"
+    },
+    "run": {
+      "type": "simple",
+      "key": "run",
+      "file": "assets/characters/gunslinger/animations_no_gun/run.png",
+      "category": "movement",
+      "loops": true,
+      "frames": {
+        "sheetWidth": 384,
+        "sheetHeight": 48,
+        "frameWidth": 48,
+        "frameHeight": 48,
+        "frameCount": 8,
+        "displayScale": 0.89
+      },
+      "originalName": "run"
+    },
+    "take_hit": {
+      "type": "simple",
+      "key": "take_hit",
+      "file": "assets/characters/gunslinger/animations_no_gun/take_hit.png",
+      "category": "state",
+      "loops": false,
+      "frames": {
+        "sheetWidth": 96,
+        "sheetHeight": 48,
+        "frameWidth": 48,
+        "frameHeight": 48,
+        "frameCount": 2,
+        "displayScale": 0.89
+      },
+      "originalName": "take_hit"
+    }
+  }
+}

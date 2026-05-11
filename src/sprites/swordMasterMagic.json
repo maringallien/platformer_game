@@ -16,8 +16,8 @@
         "frameWidth": 115,
         "frameHeight": 75,
         "frameCount": 10,
-        "anchorX": 46,
-        "anchorY": 56
+        "anchorX": 45,
+        "anchorY": 52
       },
       "originalName": "attack1"
     },
@@ -33,8 +33,8 @@
         "frameWidth": 100,
         "frameHeight": 37,
         "frameCount": 5,
-        "anchorX": 47,
-        "anchorY": 36
+        "anchorX": 37,
+        "anchorY": 34
       },
       "originalName": "attack2"
     },
@@ -45,13 +45,14 @@
       "category": "attack",
       "loops": false,
       "frames": {
-        "sheetWidth": 889,
-        "sheetHeight": 86,
-        "frameWidth": 127,
-        "frameHeight": 86,
+        "sheetWidth": 1232,
+        "sheetHeight": 120,
+        "frameWidth": 176,
+        "frameHeight": 120,
         "frameCount": 7,
-        "anchorX": 55,
-        "anchorY": 61
+        "anchorX": 76,
+        "anchorY": 90,
+        "displayScale": 0.55
       },
       "originalName": "attack3"
     },
@@ -62,13 +63,14 @@
       "category": "attack",
       "loops": false,
       "frames": {
-        "sheetWidth": 450,
-        "sheetHeight": 79,
-        "frameWidth": 90,
-        "frameHeight": 79,
+        "sheetWidth": 685,
+        "sheetHeight": 120,
+        "frameWidth": 137,
+        "frameHeight": 120,
         "frameCount": 5,
-        "anchorX": 34,
-        "anchorY": 58
+        "anchorX": 49,
+        "anchorY": 89,
+        "displayScale": 0.5
       },
       "originalName": "attack4"
     },
@@ -85,7 +87,8 @@
         "frameHeight": 90,
         "frameCount": 6,
         "anchorX": 59,
-        "anchorY": 65
+        "anchorY": 65,
+        "displayScale": 0.75
       },
       "originalName": "attack5"
     }
